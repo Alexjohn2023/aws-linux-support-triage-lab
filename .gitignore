@@ -1,0 +1,7 @@
+*.pem
+*.key
+.env
+.env.*
+.aws/
+credentials
+secrets.*
