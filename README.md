@@ -24,15 +24,17 @@ A hands-on technical support lab built on an Ubuntu AWS EC2 virtual machine. Thi
 
 | Exercise | Status | Skills Demonstrated |
 | --- | --- | --- |
+| **Exercise** | **Status** | **Skills Demonstrated** |
+|---|---|---|
 | Baseline verification | Complete | Service state, listeners, configuration, HTTP checks |
-| Nginx service outage | Complete — IT-2 | Local diagnosis and external recovery verification |
+| Nginx service outage | Complete - IT-2 | Local diagnosis and external recovery verification |
+| SSH and permissions | Complete -IT-3 and IT-4 | Diagnose HTTP 403 and SSH authentication failures using file permissions and logs |
+| Security review | Ongoing | Review SSH, users, UFW, and AppArmor |
 | High CPU | Planned | Identify a controlled workload and verify CPU recovery |
 | Isolated filesystem full | Planned | Investigate capacity and inodes without filling the root disk |
 | Application 502 error | Planned | Distinguish a working Nginx proxy from a failed upstream |
-| SSH and permissions | Complete — IT-3 and IT-4 | Diagnose HTTP 403 and SSH authentication failures using file permissions and logs |
 | Host firewall blocks HTTP | Planned | Compare host firewall rules and cloud security controls |
 | DNS lookup failure | Planned | Compare successful and failed DNS queries |
-| Security review | Ongoing | Review SSH, users, UFW, and AppArmor |
 
 Three roadmap categories are complete, covering four individual exercises:
 baseline verification, Nginx recovery, website permissions, and SSH authentication.
