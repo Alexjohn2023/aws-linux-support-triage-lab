@@ -8,7 +8,7 @@ A hands-on technical support lab built on an Ubuntu AWS EC2 virtual machine. Thi
 **Web server:** Nginx  
 **Ticketing:** Jira Service Management  
 
-> All incidents are controlled exercises on a non-production lab instance. No customer or production system was affected. This project uses AWS infrastructure; the troubleshooting skills are relevant to cloud support environments, including Vultr.
+> This project uses AWS infrastructure; the troubleshooting skills are relevant to cloud support environments.
 
 ## Project Goals
 
