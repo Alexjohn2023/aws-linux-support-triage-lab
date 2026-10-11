@@ -27,8 +27,8 @@ A hands-on technical support lab built on an Ubuntu AWS EC2 virtual machine. Thi
 | Exercise | Status | Skills Demonstrated |
 | --- | --- | --- |
 | Baseline verification | Complete | Service state, listeners, configuration, HTTP checks |
-| Nginx service outage | Complete — IT-2 | Local diagnosis and external recovery verification |
-| SSH and permissions | Complete — IT-3 and IT-4 | Diagnose HTTP 403 and SSH authentication failures using file permissions and logs |
+| Nginx service outage | Complete - IT-2 | Local diagnosis and external recovery verification |
+| SSH and permissions | Complete - IT-3 and IT-4 | Diagnose HTTP 403 and SSH authentication failures using file permissions and logs |
 | Security review | Ongoing | Review SSH, users, UFW, and AppArmor |
 | High CPU | Planned | Identify a controlled workload and verify CPU recovery |
 | Isolated filesystem full | Planned | Investigate capacity and inodes without filling the root disk |
