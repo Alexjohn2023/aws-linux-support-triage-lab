@@ -29,7 +29,7 @@ A hands-on technical support lab built on an Ubuntu AWS EC2 virtual machine. Thi
 | Baseline verification | Complete | Service state, listeners, configuration, HTTP checks |
 | Nginx service outage | Complete - IT-2 | Local diagnosis and external recovery verification |
 | SSH and permissions | Complete - IT-3 and IT-4 | Diagnose HTTP 403 and SSH authentication failures using file permissions and logs |
-| Security review | Complete - findings documented | Verified users, SSH settings and permissions, process owners, UFW, AWS security group rules, AppArmor coverage, and external access |
+| Security review | Complete - IT-5; findings documented | Reviewed SSH, users, file permissions, process owners, UFW, AWS security group rules, and AppArmor coverage; verified external access |
 | High CPU | Planned | Identify a controlled workload and verify CPU recovery |
 | Isolated filesystem full | Planned | Investigate capacity and inodes without filling the root disk |
 | Application 502 error | Planned | Distinguish a working Nginx proxy from a failed upstream |
