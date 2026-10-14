@@ -11,7 +11,7 @@ This lab demonstrates Linux troubleshooting, service recovery, SSH authenticatio
 **Client tools:** Windows Git Bash and SSH  
 **Ticketing platform:** Jira Service Management  
 
-> All fault simulations were performed on a non-production lab instance. No customer or production system was affected. This project uses AWS infrastructure and demonstrates skills transferable to other cloud support environments.
+> This project uses AWS infrastructure and demonstrates skills transferable to other cloud support environments.
 
 ## Project Goals
 
