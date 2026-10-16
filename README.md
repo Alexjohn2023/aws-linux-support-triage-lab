@@ -2,12 +2,13 @@
 
 A hands-on cloud technical support project built on an Ubuntu AWS EC2 virtual machine.
 
-This project demonstrates Linux troubleshooting, service recovery, SSH authentication, file permissions, security review, CPU investigation, evidence collection, and ticket handling through Jira Service Management.
+This project demonstrates Linux troubleshooting, service recovery, SSH authentication, file permissions, security review, CPU and storage investigation, reverse-proxy troubleshooting, firewall diagnosis, AWS security group troubleshooting, DNS investigation, and Jira support documentation.
 
 **Author:** Alexander Njoku  
 **Infrastructure:** AWS EC2  
 **Operating system:** Ubuntu  
 **Web server:** Nginx  
+**Application:** Node.js managed by systemd  
 **Client tools:** Windows Git Bash and SSH  
 **Ticketing:** Jira Service Management  
 
@@ -16,13 +17,13 @@ This project demonstrates Linux troubleshooting, service recovery, SSH authentic
 ## Project Goals
 
 - Establish a working baseline before introducing faults.
-- Investigate issues using Linux commands and system logs.
+- Identify the failing layer using commands, logs, and comparison tests.
 - Distinguish service, application, network, resource, and access-control failures.
 - Apply targeted corrections and verify recovery.
-- Preserve administrator access during authentication troubleshooting.
-- Run controlled workloads under a non-administrator account.
+- Preserve administrator access during authentication and firewall testing.
+- Run application workloads under a non-administrator account.
 - Review security controls and document remaining findings.
-- Communicate technical findings clearly through support tickets.
+- Communicate clearly through internal notes and simulated customer updates.
 - Develop reusable incident reports and troubleshooting procedures.
 
 ## Exercise Roadmap
@@ -30,28 +31,21 @@ This project demonstrates Linux troubleshooting, service recovery, SSH authentic
 | Exercise | Status | Skills Demonstrated |
 | --- | --- | --- |
 | Baseline verification | Complete | Service state, listeners, configuration, HTTP checks |
-| Nginx service outage | Complete - IT-2 | Local diagnosis and external recovery verification |
-| SSH and permissions | Complete - IT-3 and IT-4 | Diagnose HTTP 403 and SSH authentication failures using permissions and logs |
-| Security review | Complete - IT-5; findings documented | Review users, SSH, permissions, process owners, UFW, AWS security groups, and AppArmor coverage |
-| High CPU | Complete - IT-6 | Identify a bounded non-root CPU workload and verify automatic recovery and local HTTP availability |
-| Isolated filesystem full | Planned | Investigate capacity and inodes without filling the root disk |
-| Application 502 error | Planned | Distinguish a working Nginx proxy from a failed upstream |
-| Host firewall blocks HTTP | Planned | Diagnose host firewall rules while preserving SSH access |
-| AWS security group and network ACL troubleshooting | Planned | Diagnose blocked ingress, distinguish stateful and stateless controls, and check return traffic |
-| DNS lookup failure | Planned | Compare successful and failed DNS queries |
+| Nginx service outage | Complete - IT-1 and IT-2 | Service diagnosis and local/external recovery verification |
+| SSH and permissions | Complete - IT-3 and IT-4 | Diagnose HTTP 403 and SSH failures using permissions and logs |
+| Security review | Complete - IT-5; findings documented | Assess users, SSH, permissions, process owners, UFW, AWS rules, and AppArmor coverage |
+| High CPU | Complete - IT-6 | Identify a bounded non-root workload and verify automatic recovery |
+| Isolated filesystem full | Complete - IT-7 | Distinguish capacity exhaustion from inode exhaustion and restore writes |
+| Application 502 error | Complete - IT-8 | Distinguish a healthy Nginx proxy from a stopped upstream application |
+| Host firewall blocks HTTP | Complete - IT-9 | Compare local HTTP success with an external firewall-induced timeout |
+| AWS security group and network ACL troubleshooting | In progress — security group complete, IT-10; network ACL pending | Diagnose missing cloud ingress rules and assess subnet-level change scope |
+| DNS lookup failure | Complete- IT-11 | Distinguish NXDOMAIN from a general resolver or web-server failure |
 
-**Progress: Five of ten roadmap categories are complete.**
+**Progress: Nine of ten roadmap categories are complete.**
 
-These cover six individual activities:
+All eleven Jira records are marked **Completed / Fixed**. Ticket count differs from roadmap count because SSH and permissions share a category, Nginx was exercised twice, and the AWS networking category includes separate security group and network ACL exercises.
 
-1. Server baseline verification.
-2. Nginx service recovery.
-3. Website permissions troubleshooting.
-4. SSH authentication troubleshooting.
-5. Security configuration review.
-6. Controlled CPU workload investigation.
-
-Security review completion means the configuration was assessed and findings documented. It does not mean every hardening opportunity was remediated.
+The security review and DNS investigation required no configuration repair. Their Jira resolution label records workflow completion rather than remediation of all findings.
 
 ## Lab Environment
 
@@ -59,66 +53,70 @@ Security review completion means the configuration was assessed and findings doc
 | --- | --- |
 | AWS EC2 | Hosts the Linux lab |
 | Ubuntu | Operating system |
-| Nginx | Serves HTTP requests |
-| Windows Git Bash | Client-side SSH and external HTTP checks |
-| systemd | Service management |
-| journalctl | System and authentication log investigation |
-| supportlab | Dedicated non-administrator account for SSH and CPU exercises |
+| Nginx | Serves static content and proxies application requests |
+| Node.js | Small HTTP application |
+| systemd | Manages Nginx and the application service |
+| supportlab | Dedicated non-administrator account |
+| support-lab | Dedicated application group |
+| Windows Git Bash | Client-side SSH and external HTTP tests |
 | UFW | Host firewall |
+| AWS security group | Instance-level cloud traffic controls |
 | AppArmor | Application confinement coverage review |
-| AWS security group | Cloud-level traffic controls |
-| Jira Service Management | Investigation notes, customer updates, and resolution |
+| 16 MiB tmpfs | Isolated temporary filesystem for storage testing |
+| systemd-resolved | Local DNS resolver service |
+| Jira Service Management | Investigation, communication, and closure |
 
-The completed website exercises use HTTP. HTTPS, Node.js upstream deployment, and monitoring integrations have not yet been demonstrated in this project.
+The completed web exercises use HTTP. HTTPS, ALB deployment, and monitoring integrations have not been demonstrated in this project.
 
-## Repository Documentation
+## Application Layout
 
-| File | Purpose |
+| Endpoint | Destination |
 | --- | --- |
-| README.md | Project overview, roadmap, and verified results |
-| baseline-checks.md | Server baseline procedures |
-| service-unavailable.md | Nginx outage documentation |
-| website-permissions-403.md | HTTP 403 permissions incident |
-| ssh-authentication-failure.md | SSH authentication incident |
-| linux-security-hardening.md | Security procedures, controls, and findings |
-| high-cpu-troubleshooting.md | IT-6 CPU workload investigation |
-| .gitignore | Excludes files according to its configured patterns |
+| Nginx `/` | Static files under `/var/www/html` |
+| Nginx `/support-app/` | Node.js at `127.0.0.1:3000` |
+| Node.js direct endpoint | Loopback access only |
+
+Application service settings include:
+
+```ini
+User=supportlab
+Group=support-lab
+WorkingDirectory=/srv/support-lab
+ExecStart=/usr/bin/node /srv/support-lab/app.js
+```
+
+Nginx proxy configuration:
+
+```nginx
+location /support-app/ {
+    proxy_pass http://127.0.0.1:3000/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
 
 ## Support Workflow
 
-Incident exercises follow this process:
-
 1. Verify the working baseline.
-2. Introduce one controlled fault or workload.
+2. Introduce a controlled fault or workload.
 3. Assess symptoms and affected scope.
-4. Gather relevant logs and system evidence.
+4. Gather logs and system evidence.
 5. Identify the cause.
 6. Apply a targeted correction or observe bounded workload termination.
 7. Verify recovery.
-8. Document the technical investigation.
+8. Record technical findings.
 9. Provide a simulated customer-facing update.
 10. Complete the Jira workflow and update documentation.
 
-Jira records for the completed incidents were created after technical recovery to document the simulated support workflow.
+Jira records were created after the technical investigation to document the simulated support workflow.
 
-The security review follows an assessment workflow: inspect controls, record findings, verify access, and document follow-up work.
+Security review followed an assessment workflow: inspect controls, document findings, verify access, and identify follow-up work.
 
-## Completed Exercise: Server Baseline
+## Baseline Verification
 
 ### Objective
 
-Establish the server's working state before troubleshooting.
-
-### Checks Performed
-
-- Current user and operating system.
-- Uptime and load average.
-- Memory availability.
-- Root filesystem capacity and inode usage.
-- Nginx configuration validity.
-- Service state.
-- Listening TCP ports.
-- Local HTTP response.
+Establish what healthy operation looks like before troubleshooting.
 
 ### Commands
 
@@ -134,95 +132,84 @@ df -i /
 sudo nginx -t
 sudo systemctl is-active nginx
 sudo ss -lntp
-curl -I --max-time 5 http://127.0.0.1
+curl -I --max-time 5 http://127.0.0.1/
 ```
 
-### Verified Result
+### Verified Results
 
-Nginx configuration passed validation, the service was active, port 80 was listening, and the local website returned HTTP 200.
+- Nginx configuration passed validation.
+- Nginx was active.
+- Port 80 was listening.
+- Local HTTP returned 200.
+- Memory, filesystem capacity, and inode information were recorded.
 
-Evidence was saved on the EC2 server:
+Evidence:
 
 ```text
-~/aws-linux-support-triage-evidence/baseline/server-baseline.txt
+baseline/server-baseline.txt
 ```
 
-## IT-2: Nginx Service Outage
+## IT-1 and IT-2: Nginx Service Outage
 
-**Date:** October 10, 2026  
-**Ticket status:** Completed  
-**Resolution:** Fixed  
+**Dates:** October 6 and October 10, 2026  
+**Status:** Completed / Fixed  
 
 ### Scenario
 
-Nginx was intentionally stopped on the lab instance.
+Nginx was intentionally stopped to simulate an unavailable website.
 
 ### Symptoms
 
-- Nginx became inactive.
-- A local HTTP request failed to connect to port 80.
+- Service inactive.
+- Local HTTP connection failed.
 
-### Investigation
+### Investigation and Recovery
 
 ```bash
 sudo systemctl is-active nginx
-curl -I --max-time 5 http://127.0.0.1
+curl -I --max-time 5 http://127.0.0.1/
 sudo nginx -t
+sudo systemctl start nginx
 ```
 
-### Cause
-
-The service had been intentionally stopped for the exercise.
-
-### Corrective Action
-
-```bash
-sudo nginx -t && sudo systemctl start nginx
-```
-
-### Recovery Verification
+### Verification
 
 ```bash
 sudo systemctl is-active nginx
 sudo ss -lntp '( sport = :80 )'
-curl -I --max-time 5 http://127.0.0.1
+curl -I --max-time 5 http://127.0.0.1/
 ```
 
-A separate HTTP request from Windows Git Bash to the instance's public IP also returned HTTP 200.
+For IT-2, a separate request from Windows Git Bash to the instance's public IP also returned HTTP 200.
 
-### Outcome
+### Lesson
 
-Local and external HTTP access were verified. The investigation and simulated customer update were documented in Jira.
+Check configuration, service state, listeners, and HTTP behavior together. Verify externally when the reported problem concerns external access.
 
 ## IT-3: Website Permissions — HTTP 403
 
 **Date:** October 10, 2026  
-**Ticket status:** Completed  
-**Resolution:** Fixed  
+**Status:** Completed / Fixed  
 
-### Working Baseline
+### Baseline and Fault
 
-A dedicated test file returned HTTP 200 with ownership `root:root` and permissions `644`:
+A root-owned public test file returned HTTP 200 with permissions `644`.
 
 ```text
 /var/www/html/support-permissions-lab.txt
 ```
 
-### Controlled Fault
+Changed its permissions:
 
 ```bash
 sudo chmod 600 /var/www/html/support-permissions-lab.txt
 ```
 
-### Symptoms
-
-Nginx remained active, but the test page returned HTTP 403 Forbidden.
+Nginx remained active, but the page returned HTTP 403.
 
 ### Investigation
 
 ```bash
-sudo systemctl is-active nginx
-
 sudo stat -c '%A %a %U:%G %n' \
 /var/www/html/support-permissions-lab.txt
 
@@ -232,34 +219,27 @@ curl -i --max-time 5 \
 http://127.0.0.1/support-permissions-lab.txt
 
 sudo tail -n 20 /var/log/nginx/error.log
-
 namei -l /var/www/html/support-permissions-lab.txt
 ```
 
-At 19:53:52 UTC, the error log recorded:
+At 19:53:52 UTC, Nginx logged:
 
 ```text
 open() "/var/www/html/support-permissions-lab.txt" failed
 (13: Permission denied)
 ```
 
-### Cause
+### Cause and Recovery
 
-The Nginx worker account could not read the root-owned file with permissions `600`.
-
-### Corrective Action
+The worker account could not read the file.
 
 ```bash
 sudo chmod 644 /var/www/html/support-permissions-lab.txt
 ```
 
-### Recovery Verification
+Permissions `644` and local HTTP 200 were verified. No Nginx restart was required.
 
-Saved evidence confirmed permissions `644` and HTTP 200 locally.
-
-No Nginx restart was required. External recovery verification was not recorded for this incident.
-
-### Evidence Files
+### Evidence
 
 ```text
 permissions/01-working-baseline.txt
@@ -267,42 +247,34 @@ permissions/02-permission-failure.txt
 permissions/03-permission-restored.txt
 ```
 
-### Support Lesson
+### Lesson
 
-A running web server can still fail to serve a resource. Check the HTTP response, error logs, ownership, file permissions, and directory traversal permissions.
-
-Permissions `644` were appropriate for this public test file, not for private keys or sensitive application data.
+An active service can still fail to serve an individual resource. Avoid broad permission changes such as `chmod 777`.
 
 ## IT-4: SSH Authentication Failure
 
 **Date:** October 10, 2026  
-**Ticket status:** Completed  
-**Resolution:** Fixed  
+**Status:** Completed / Fixed  
 
-### Working Baseline
+### Baseline
 
-An Ed25519 key pair was generated on Windows. Only its public key was installed for the dedicated `supportlab` account.
+Configured Ed25519 key authentication for `supportlab`.
 
-A fresh key-based login succeeded.
+Verified:
 
-Verified controls:
-
-- `.ssh` directory permissions: `700`.
-- `authorized_keys` permissions: `600`.
+- `.ssh` directory: `700`.
+- `authorized_keys`: `600`.
 - Ownership: `supportlab:supportlab`.
-- No `sudo` group membership.
+- No sudo group membership.
+- Successful fresh SSH login.
 
-The original `ubuntu` administrator session remained open.
+The original administrator session remained open.
 
-### Controlled Fault
+### Fault
 
 ```bash
 sudo chmod 666 /home/supportlab/.ssh/authorized_keys
 ```
-
-This temporarily made the lab user's authorization file writable by other users.
-
-### Symptom
 
 A fresh login failed:
 
@@ -310,7 +282,7 @@ A fresh login failed:
 Permission denied (publickey).
 ```
 
-### Investigation
+### Diagnosis
 
 ```bash
 sudo stat -c '%A %a %U:%G %n' \
@@ -320,39 +292,24 @@ sudo journalctl --since "2026-10-10 20:35:00 UTC" \
 --until "2026-10-10 20:37:30 UTC" --no-pager
 ```
 
-At 20:36:34 UTC, the system journal recorded:
+At 20:36:34 UTC:
 
 ```text
 Authentication refused: bad ownership or modes for file
 /home/supportlab/.ssh/authorized_keys
 ```
 
-Saved evidence confirmed permissions `666`.
-
-### Cause
-
-SSH rejected the authorization file because other users could modify it.
-
-### Corrective Action
+### Recovery
 
 ```bash
 sudo chmod 600 /home/supportlab/.ssh/authorized_keys
 ```
 
-### Recovery Verification
+A fresh key-based login succeeded at 20:38:45 UTC.
 
-A fresh key-based login succeeded. The server recorded the recovered session opening at 20:38:45 UTC.
+No SSH restart was required.
 
-```bash
-whoami
-id
-```
-
-The output confirmed the expected non-administrator account.
-
-No SSH service restart was required.
-
-### Evidence Files
+### Evidence
 
 ```text
 ssh/02-key-access-baseline.txt
@@ -361,330 +318,585 @@ ssh/04-authentication-restored.txt
 ssh/05-failure-log-detail.txt
 ```
 
-### Support Lesson
+### Lesson
 
-The client error alone did not identify the cause. Server logs and file permissions established why authentication failed.
+Correlate client errors with server logs. Test a fresh connection after correcting authentication problems.
 
-A fresh login was required to verify recovery; an existing session was insufficient.
-
-## IT-5: Linux Security Configuration Review
+## IT-5: Security Configuration Review
 
 **Date:** October 14, 2026  
-**Review status:** Complete; findings documented  
-
-### Objective
-
-Assess the existing security configuration and verify that SSH and HTTP access remain available.
+**Status:** Completed; findings documented  
 
 ### Verified Controls
 
-| Area | Finding |
+| Area | Result |
 | --- | --- |
-| User privileges | supportlab has no sudo group membership |
+| Lab account | No sudo membership |
 | SSH public-key authentication | Enabled |
 | Password authentication | Disabled |
 | Keyboard-interactive authentication | Disabled |
 | StrictModes | Enabled |
-| SSH directories | 700 with correct user ownership |
-| authorized_keys files | 600 with correct user ownership |
-| Nginx workers | Run as non-root www-data |
-| Nginx master | Runs as root |
-| UFW | Active; default deny incoming and allow outgoing |
-| UFW allowances | SSH 22 and HTTP 80 allowed for IPv4 and IPv6 |
-| AWS security groups | One group attached |
-| AWS SSH ingress | Restricted to the administrator's public IPv4 /32 |
-| AWS HTTP ingress | Port 80 allowed from 0.0.0.0/0 |
+| SSH directories | 700 with correct ownership |
+| authorized_keys files | 600 with correct ownership |
+| Nginx workers | Non-root www-data |
+| Nginx master | root |
+| UFW | Active; default deny incoming, allow outgoing |
+| UFW allowances | SSH 22 and HTTP 80 for IPv4 and IPv6 |
+| AWS security group | One attached group |
+| AWS SSH ingress | Administrator's public IPv4 /32 |
+| AWS HTTP ingress | TCP 80 from 0.0.0.0/0 |
 | AWS egress | All traffic allowed |
-| Access verification | Fresh supportlab SSH login succeeded |
-| Website verification | External HTTP 200 at 05:35:42 UTC |
+| Access checks | Fresh SSH login and external HTTP 200 |
 
-### AppArmor Coverage
+### AppArmor Findings
 
-The reviewed output showed:
+- Two chronyd processes were in enforce mode.
+- rsyslogd was in enforce mode.
+- Amazon SSM Agent was in complain mode.
+- Nginx confinement was not demonstrated.
 
-- Two `chronyd` processes in enforce mode.
-- `rsyslogd` in enforce mode.
-- Amazon SSM Agent in complain mode.
-- No demonstrated Nginx confinement.
+AppArmor being enabled does not prove that every process is confined.
 
-An enabled AppArmor system does not establish that every application is confined.
+### Follow-Up Work
 
-### Follow-Up Findings
+- Assess narrower UFW SSH source rules.
+- Evaluate disabling direct root login after verifying administrator access.
+- Assess required outbound traffic before restricting egress.
+- Develop and test Nginx AppArmor confinement separately.
 
-| Finding | Proposed Follow-Up |
-| --- | --- |
-| UFW permits SSH from any source | Evaluate narrower host-level source rules while preserving recovery access |
-| PermitRootLogin is prohibit-password | Evaluate disabling direct root login after verifying named administrator access |
-| AWS outbound traffic is unrestricted | Assess required traffic before introducing egress restrictions |
-| Nginx confinement was not demonstrated | Develop and validate an appropriate AppArmor profile separately |
-
-These are hardening opportunities requiring assessment, not evidence of compromise.
-
-### Commands Used
-
-```bash
-id supportlab
-getent group sudo
-
-sudo sshd -T | grep -E \
-'^(pubkeyauthentication|passwordauthentication|kbdinteractiveauthentication|permitrootlogin|strictmodes) '
-
-sudo stat -c '%A %a %U:%G %n' \
-/home/ubuntu/.ssh \
-/home/ubuntu/.ssh/authorized_keys \
-/home/supportlab/.ssh \
-/home/supportlab/.ssh/authorized_keys
-
-ps -eo user,group,pid,comm | grep -E '(sshd|nginx)'
-
-sudo ufw status verbose
-sudo aa-status
-```
+`PermitRootLogin prohibit-password` still permits root key authentication when other requirements are satisfied.
 
 ### Outcome
 
-The review, internal findings, and simulated customer update were documented in IT-5. The ticket was completed.
+Existing settings were reviewed, not remediated. Findings remain documented follow-up work.
 
-The review did not remediate the follow-up findings. Its completion does not mean all hardening is complete.
-
-## IT-6: Controlled CPU Workload Investigation
+## IT-6: CPU Workload Investigation
 
 **Date:** October 14, 2026  
-**Ticket status:** Completed  
-**Resolution:** Fixed  
+**Status:** Completed / Fixed  
 
-### Objective
+### Workload
 
-Identify a CPU-intensive non-root process, interpret its resource usage, and verify recovery after a bounded workload ends.
-
-### Controlled Workload
-
-Ran as `supportlab`, without sudo:
+Ran without sudo as supportlab:
 
 ```bash
 timeout -k 2s 60s nice -n 10 yes > /dev/null &
 ```
 
-The command:
-
-- Generates CPU activity using `yes`.
-- Discards output instead of writing it to disk.
-- Applies nice value `10`, giving the workload lower scheduling priority.
-- Limits execution to approximately 60 seconds, with a forced termination fallback.
-
-### Investigation
-
-```bash
-nproc
-top -b -d 1 -n 2 | head -n 45
-
-ps -eo user,pid,ppid,comm,%cpu,%mem --sort=-%cpu |
-head -n 12
-
-curl -I --max-time 5 http://127.0.0.1
-```
+### Findings
 
 At 06:06:13 UTC:
 
-| Observation | Result |
+| Check | Result |
 | --- | --- |
 | Logical CPUs | 2 |
 | Process | yes |
-| PID | 2165 |
-| Parent PID | 2160 |
+| PID / parent PID | 2165 / 2160 |
 | Owner | supportlab |
 | Nice value | 10 |
 | top process CPU | 90.9% |
 | ps process CPU | 99.9% |
-| Local website | HTTP 200 |
+| Local HTTP | 200 |
 
-The username displayed as `support+` was truncated.
+The workload consumed approximately one logical CPU, not the whole two-CPU server.
 
-### Interpretation
-
-The process consumed approximately one logical CPU, not the entire two-CPU server.
-
-`ps` reports lifetime-average CPU usage, which can differ from an interval-based `top` reading.
-
-The local HTTP check confirmed a response during the workload. It did not establish performance under sustained load or prove the server was overloaded.
+`ps` reports lifetime-average CPU usage, which can differ from interval-based measurements.
 
 ### Recovery
 
 The configured timeout ended the workload automatically.
 
-No manual process termination, service restart, or scaling change was performed.
-
-### Recovery Verification
-
-```bash
-pgrep -a -u supportlab -x yes
-
-top -b -d 1 -n 2 -w 120 |
-grep -E '^top -|^%Cpu'
-
-ps -eo user:16,pid,ppid,comm,%cpu,%mem --sort=-%cpu |
-head -n 12
-
-sudo systemctl is-active nginx
-curl -I --max-time 5 http://127.0.0.1
-```
-
 At 06:08:33–06:08:35 UTC:
 
-- No `yes` workload remained for `supportlab`.
-- CPU idle readings were `100.0%` and `99.1%`.
+- No yes workload remained.
+- CPU idle measured 100.0% and 99.1%.
 - Nginx remained active.
 - Local HTTP returned 200.
 
-External HTTP recovery verification was not recorded for this exercise.
+No manual process termination or service restart was performed.
 
-### Evidence Files
+### Evidence
 
 ```text
 resources/02-cpu-workload.txt
 resources/03-cpu-recovery.txt
 ```
 
-### Support Lesson
+### Lesson
 
-Identify the process, owner, and purpose before considering termination.
+Identify process ownership and purpose before acting. High CPU alone does not justify terminating an unknown or critical process.
 
-Interpret process CPU usage alongside CPU count and system-wide measurements. High CPU alone does not justify killing an unknown or critical process.
+## IT-7: Isolated Filesystem Full
 
-This exercise demonstrated workload identification and automatic timeout recovery, not manual remediation.
+**Date:** October 16, 2026  
+**Status:** Completed / Fixed  
+
+### Setup
+
+Mounted a dedicated temporary filesystem:
+
+| Setting | Value |
+| --- | --- |
+| Mount point | /mnt/support-disk-lab |
+| Type | tmpfs |
+| Capacity | 16 MiB |
+| Inodes | 1,024 |
+| Owner | supportlab:supportlab |
+| Permissions | 700 |
+| Mount restrictions | nosuid, nodev, noexec |
+
+The root filesystem was 33% used before the exercise.
+
+### Fault
+
+After verifying the mount, attempted a 17 MiB write as supportlab:
+
+```bash
+sudo -u supportlab dd if=/dev/zero \
+of=/mnt/support-disk-lab/lab-fill.bin \
+bs=1M count=17 status=none
+```
+
+### Findings at 05:26:55 UTC
+
+- Write failed with “No space left on device.”
+- Exit code: 1.
+- Isolated filesystem: 100% full.
+- Known test file: 16 MiB.
+- Free inodes: 1,022.
+- Root filesystem: unchanged at 33%.
+
+### Recovery
+
+Removed only the known disposable file:
+
+```bash
+sudo -u supportlab rm -- /mnt/support-disk-lab/lab-fill.bin
+```
+
+Created and read back a new file as supportlab.
+
+At 05:27:53 UTC:
+
+- Write exit code was 0.
+- Expected contents were read back.
+- Isolated filesystem usage returned to 1%.
+- Root filesystem remained 33% used.
+- Nginx was active and local HTTP returned 200.
+
+The temporary filesystem was unmounted after verification.
+
+### Evidence
+
+```text
+resources/04-filesystem-baseline.txt
+resources/05-filesystem-full.txt
+resources/06-filesystem-recovery.txt
+```
+
+### Limitations
+
+This tested tmpfs capacity exhaustion, not EBS failure, root-disk exhaustion, inode exhaustion, or a storage-induced website outage.
+
+### Lesson
+
+Check both capacity and inodes. Verify recovery with a successful write and read-back test.
+
+## IT-8: Nginx 502 — Stopped Upstream
+
+**Date:** October 16, 2026  
+**Status:** Completed / Fixed  
+
+### Baseline
+
+The Node.js application ran as supportlab:support-lab on loopback port 3000.
+
+Both direct and proxied requests returned:
+
+```text
+HTTP/1.1 200 OK
+Support lab application is healthy
+```
+
+### Fault
+
+```bash
+sudo systemctl stop support-lab-app
+```
+
+The application stopped at 05:52:17 UTC.
+
+### Findings
+
+| Check | Result |
+| --- | --- |
+| Nginx | Active |
+| Application | Inactive |
+| Port 3000 | No listener |
+| Direct application request | Connection failed |
+| /support-app/ | HTTP 502 |
+| Static website / | HTTP 200 |
+
+At 05:52:33 UTC, Nginx logged:
+
+```text
+connect() failed (111: Connection refused) while connecting to upstream
+```
+
+### Recovery
+
+```bash
+sudo systemctl start support-lab-app
+```
+
+Verified:
+
+- Both services active.
+- Application listening on 127.0.0.1:3000.
+- Process owned by supportlab:support-lab.
+- Direct application, proxy route, and static website returned HTTP 200 locally.
+
+No Nginx restart or firewall change was required.
+
+### Evidence
+
+```text
+application/01-proxy-baseline.txt
+application/02-upstream-failure.txt
+application/03-upstream-recovery.txt
+```
+
+### Lesson
+
+A healthy proxy does not establish upstream health. Compare direct and proxied requests, listeners, service state, and logs.
+
+## IT-9: UFW Blocks External HTTP
+
+**Date:** October 16, 2026  
+**Status:** Completed / Fixed  
+
+### Fault
+
+Inserted a source-specific TCP 80 deny rule before the existing HTTP allowance.
+
+The rule was labelled:
+
+```text
+LAB-HTTP-BLOCK
+```
+
+SSH port 22 was not targeted.
+
+### Findings
+
+At 06:03:53 UTC:
+
+- UFW showed the deny rule before the allow rule.
+- Nginx remained active.
+- Local HTTP returned 200.
+- An external Windows request timed out after approximately five seconds.
+
+### Recovery
+
+Deleted the exact source-specific deny rule.
+
+Verified:
+
+- The test rule was absent.
+- Original SSH and HTTP allowances remained.
+- External HTTP returned 200 at 06:04:57 UTC.
+- The administrator SSH session remained available.
+
+No Nginx restart or AWS security group change was required.
+
+### Evidence
+
+```text
+network/01-firewall-baseline.txt
+network/02-firewall-block.txt
+```
+
+External timeout and recovery output were also captured in Windows Git Bash.
+
+### Lesson
+
+Compare local and external behavior before restarting services. Host firewall rule order can determine whether traffic reaches a healthy application.
+
+## IT-10: Missing AWS HTTP Ingress Rule
+
+**Date:** October 16, 2026  
+**Status:** Completed / Fixed  
+
+### Scope Check
+
+Reviewed related resources before editing the security group and identified the lab instance and its network interface.
+
+### Fault
+
+Temporarily removed the inbound HTTP TCP 80 allowance.
+
+The SSH rule remained unchanged.
+
+### Findings
+
+- Local EC2 HTTP returned 200 at 06:15:08 UTC.
+- UFW retained its HTTP allowance.
+- A new external connection timed out after approximately five seconds.
+
+An initial diagnostic command was mistakenly run in Windows Git Bash. It was rerun on EC2; the Windows localhost result was excluded from server evidence.
+
+### Recovery
+
+Restored HTTP TCP 80 ingress from 0.0.0.0/0.
+
+External HTTP returned 200 at 06:16:58 UTC.
+
+No Nginx restart or UFW change was required.
+
+### Evidence
+
+```text
+network/04-security-group-failure.txt
+```
+
+External timeout and recovery output were captured in Windows Git Bash.
+
+### Lesson
+
+A host firewall allowance does not override a missing cloud security group allowance.
+
+Confirm the machine, destination IP, and network layer before interpreting results.
+
+## IT-11: DNS NXDOMAIN Investigation
+
+**Date:** October 16, 2026  
+**Status:** Completed; no configuration repair required  
+
+### Baseline
+
+At 06:43:12 UTC:
+
+- example.com returned NOERROR with IPv4 answers.
+- getent also resolved the name.
+- The local DNS stub was 127.0.0.53.
+- Local Nginx returned HTTP 200.
+
+The local stub address is not necessarily the upstream DNS server.
+
+### Controlled Test
+
+```bash
+dig support-lab.invalid. A +time=3 +tries=1
+
+curl --noproxy '*' -I --connect-timeout 3 --max-time 5 \
+http://support-lab.invalid/
+
+dig example.com. A +time=3 +tries=1
+```
+
+### Findings
+
+| Check | Result |
+| --- | --- |
+| support-lab.invalid | NXDOMAIN |
+| Curl | Could not resolve host; exit code 6 |
+| example.com comparison | NOERROR with IPv4 answers |
+| Local website | HTTP 200 |
+
+### Conclusion
+
+The deliberately nonexistent hostname failed as expected.
+
+Successful comparison queries showed that resolution worked for a known-good name. No DNS configuration, record, or service changes were required.
+
+### Evidence
+
+```text
+dns/01-dns-baseline.txt
+dns/02-nxdomain-comparison.txt
+```
+
+### Limitations
+
+This did not test DNS timeouts, SERVFAIL, authoritative-record repair, or propagation.
+
+The Jira Fixed label records workflow completion, not a repaired DNS configuration.
+
+## Network ACL Exercise — Pending
+
+Inspection established that:
+
+- The default network ACL is associated with six subnets.
+- The current lab subnet contains four network interfaces, including other instances.
+- Modifying that shared ACL or changing the existing subnet association could affect unrelated lab resources.
+
+The existing shared ACL was left unchanged during this inspection.
+
+The proposed next step is a dedicated subnet and temporary test resource with a separately configured ACL. Creation and association have not been verified.
+
+### Planned Learning Outcomes
+
+- Understand subnet-level scope.
+- Evaluate rules in ascending numerical order.
+- Distinguish stateless network ACLs from stateful security groups.
+- Check inbound traffic and required return traffic.
+- Preserve administrator access.
+- Verify recovery and restore the original configuration.
 
 ## Jira Support Records
 
-| Ticket | Activity | Outcome |
+| Ticket | Activity | Final Workflow State |
 | --- | --- | --- |
-| IT-2 | Nginx service outage | Completed / Fixed |
+| IT-1 | Initial Nginx outage | Completed / Fixed |
+| IT-2 | Nginx outage with external verification | Completed / Fixed |
 | IT-3 | Website permissions — HTTP 403 | Completed / Fixed |
 | IT-4 | SSH authorization-file permissions | Completed / Fixed |
-| IT-5 | Security configuration review | Completed; findings documented |
-| IT-6 | Controlled CPU workload | Completed / Fixed; timeout recovery verified |
+| IT-5 | Security configuration review | Completed / Fixed |
+| IT-6 | Bounded CPU workload | Completed / Fixed |
+| IT-7 | Isolated filesystem capacity exhaustion | Completed / Fixed |
+| IT-8 | Nginx upstream failure — HTTP 502 | Completed / Fixed |
+| IT-9 | Host firewall blocking HTTP | Completed / Fixed |
+| IT-10 | Missing AWS HTTP ingress rule | Completed / Fixed |
+| IT-11 | DNS NXDOMAIN investigation | Completed / Fixed |
 
-Records include scope, findings, verification, internal notes, simulated customer updates, and ownership.
+All eleven records were confirmed in the Jira work-item list.
 
-These describe lab activities rather than customer production incidents.
+These are controlled lab records. IT-5 retains hardening findings, and IT-11 required no repair.
 
 ## Troubleshooting Commands
 
 | Command | Purpose |
 | --- | --- |
-| systemctl is-active | Check service state |
-| nginx -t | Validate Nginx configuration |
-| nginx -T | Inspect complete Nginx configuration |
-| journalctl | Review system and authentication logs |
+| systemctl | Inspect and manage services |
+| nginx -t / nginx -T | Validate or inspect Nginx configuration |
+| journalctl | Review system and application logs |
 | ss -lntp | Inspect listening TCP ports |
-| curl -I / curl -i | Inspect HTTP headers or headers and body |
-| stat | Inspect ownership and permissions |
-| namei -l | Inspect permissions along a path |
-| ps | Inspect processes, owners, and resource usage |
-| top | Observe CPU and memory activity |
-| nproc | Report processing units available to the current process |
+| curl -I | Send a HEAD request and display response headers |
+| curl -i | Display response headers and body |
+| stat / namei -l | Inspect ownership, permissions, and path access |
+| ps / top | Inspect processes and resource usage |
+| nproc | Report available processing units |
 | pgrep | Find matching processes |
-| timeout | Bound command execution time |
-| nice | Adjust scheduling priority |
-| id / getent | Inspect users and groups |
+| timeout / nice | Bound execution and adjust scheduling priority |
+| id / getent | Inspect identity, groups, or name-service results |
 | ssh-keygen | Generate keys and inspect fingerprints |
-| sshd -T | Inspect SSH daemon settings |
-| chmod / chown | Apply targeted permissions or ownership changes |
-| ufw status verbose | Inspect host firewall policy |
+| sshd -T | Inspect SSH settings |
+| chmod / chown | Apply targeted permission or ownership changes |
+| ufw status numbered | Inspect ordered host firewall rules |
 | aa-status | Inspect AppArmor coverage |
-| free -h | Check memory availability |
-| df -h / df -i | Check capacity and inode usage |
+| free -h | Inspect memory availability |
+| findmnt | Identify mount points and filesystem types |
+| df -h / df -i | Inspect capacity and inode availability |
+| du -h | Inspect file space usage |
+| mount / umount | Attach or detach the temporary filesystem |
+| dd | Generate bounded test data |
+| dig | Inspect DNS responses and status codes |
 | tee | Save output while displaying it |
 
 ## Evidence Collection
 
-Evidence is collected on the EC2 server under:
+Evidence is stored on EC2 under:
 
 ```text
 ~/aws-linux-support-triage-evidence/
 ```
 
-Categories include:
+Categories used include:
 
 ```text
 baseline/
 nginx/
-network/
 permissions/
-resources/
 ssh/
 security/
+resources/
+application/
+network/
+dns/
 ```
 
-Evidence saved on EC2 is not automatically published to this repository.
+Evidence stored on EC2 or Windows is not automatically uploaded to this repository.
 
-Before uploading copies:
+Before publishing copies:
 
-- Remove credentials, private keys, passwords, and tokens.
+- Remove private keys, passwords, tokens, and credentials.
 - Review logs and screenshots for personal information.
 - Redact unnecessary IP addresses and infrastructure identifiers.
-- Preserve details needed to substantiate the findings.
-- Confirm uploaded evidence matches the documented exercise.
+- Preserve details needed to support the findings.
+- Exclude output collected on the wrong machine.
+- Confirm published evidence matches the documented exercise.
 
-## Security Practices Demonstrated
+## Security and Change-Control Practices
 
-- Used a named administrator account for privileged operations.
-- Used a dedicated non-administrator account for SSH and CPU exercises.
-- Kept private keys on the client.
-- Verified SSH ownership and permissions.
-- Preserved administrator access during authentication testing.
-- Limited faults to designated lab resources.
-- Used a bounded CPU workload with lower scheduling priority.
-- Confirmed Nginx workers run as a non-root account.
-- Compared host firewall and cloud security controls.
-- Distinguished verified controls from pending hardening.
-- Verified recovery before closing incident tickets.
+- Used named accounts rather than routine direct root sessions.
+- Used sudo for administrator operations.
+- Ran Node.js and CPU workloads as supportlab.
+- Kept application port 3000 bound to loopback.
+- Preserved administrator access during authentication and firewall tests.
+- Kept private SSH keys on the client.
+- Limited faults to designated resources.
+- Used bounded CPU and storage tests.
+- Removed only the identified disposable storage file.
+- Checked resource scope before cloud rule changes.
+- Avoided modifying a shared network ACL.
+- Documented findings separately from completed remediation.
 
-The temporary `666` authorization-file setting was a controlled fault and was restored to `600`.
+## Important Limitations
+
+- These are controlled simulations, not production incident claims.
+- CPU recovery occurred through the configured timeout.
+- Storage testing used tmpfs, not an EBS failure.
+- DNS testing used a deliberately nonexistent name.
+- Security findings were documented rather than fully remediated.
+- Successful HTTP checks do not establish complete application functionality, security, or performance.
+- The network ACL fault exercise remains pending.
 
 ## Planned Extensions
 
-### Isolated Filesystem Full
+### Network ACL Troubleshooting
 
-Use a small isolated filesystem to investigate capacity and inode usage without filling the root filesystem.
+Complete an isolated exercise covering rule order, subnet scope, and return traffic.
 
-### Application 502
+### Monitoring and Alerting
 
-Deploy a Node.js application under a non-root service account behind Nginx. Simulate an upstream outage and distinguish proxy health from application health.
+Add monitoring after validating manual procedures. Demonstrate detection and recovery separately from service-state checks.
 
-### Host Firewall Blocks HTTP
+### Guarded Automation
 
-Introduce a scoped HTTP rule fault, compare local and external access, and restore connectivity while preserving SSH.
+Limit scripts to explicitly identified lab resources. Avoid broad process termination or indiscriminate file deletion.
 
-### AWS Security Group and Network ACL Troubleshooting
+### Cloud Architecture Practice
 
-Simulate faults separately on designated lab resources.
+Additional topics include:
 
-Inspect security group ingress, network ACL rule ordering, and return traffic. Preserve recovery access and avoid changing shared subnet controls.
+- Public load balancers and private application tiers.
+- Load-balancer target health.
+- IAM roles and temporary credentials.
+- HTTPS and certificate troubleshooting.
+- Recovery from partial Terraform deployment failures.
 
-### DNS Lookup Failure
+These are study topics or proposed extensions unless separately demonstrated.
 
-Compare successful and failed queries and distinguish name-resolution failures from network and web-server failures.
-
-### Monitoring and Automation
-
-Validate manual troubleshooting before introducing automation.
-
-Recovery scripts will act only on explicitly identified lab resources, rather than broadly killing processes or deleting files.
-
-## Relevance to Cloud Technical Support
+## Relevance to Technical Support
 
 This project demonstrates:
 
-- Linux command-line investigation.
-- Evidence-based diagnosis.
+- Systematic Linux investigation.
 - Service and authentication recovery.
-- CPU and process analysis.
+- HTTP error diagnosis.
+- CPU and filesystem analysis.
+- Host-versus-cloud firewall comparison.
+- DNS response interpretation.
 - Security configuration assessment.
+- Change-scope awareness.
 - Customer-facing communication.
-- Technical documentation.
-- Ticket ownership through completion.
+- Evidence collection and ticket ownership.
 
-The lab provides practical examples for cloud technical support interviews. It does not claim direct Vultr platform experience.
+My troubleshooting approach is:
+
+**Investigate → Identify the cause → Apply the appropriate action → Verify the result → Document and communicate.**
+
+This project uses AWS and does not claim direct Vultr platform experience.
 
 ## Author
 
